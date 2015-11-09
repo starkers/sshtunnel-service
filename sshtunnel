@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+
+#load the config
+CONFIG=/etc/myconfig/tunnel.conf
+if [ -f "$CONFIG" ]; then
+source "$CONFIG"
+else
+echo "=> ERROR: no config found @ $CONFIG"
+exit 1
+fi
+
+
+
+# supervisord should be able to send a SIGINT to stop this services/daemon
+trap finish TERM
+finish(){
+  #kill $ACTUAL_PID $JOB
+  kill  $JOB
+  echo "=> recieved SIGINT and exited OK"
+  exit 0
+}
+
+
+echo "=> Tunneling localhost:${TUNNEL_PORT_LOCAL} to ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PORT} (on port ${TUNNEL_PORT_REMOTE}) using key ${KEY}"
+autossh \
+  -M 0 \
+  -o "ServerAliveInterval 20" -o "ServerAliveCountMax 3" -o "StrictHostKeyChecking=no" \
+  -NR ${TUNNEL_PORT_REMOTE}:127.0.0.1:${TUNNEL_PORT_LOCAL} \
+  -i "${KEY}" \
+   ${REMOTE_USER}@${REMOTE_HOST} &
+
+# record the JOB (should be backgrounded)
+JOB="$(jobs -p)"
+
+# give it a few seconds to settle
+sleep 3
+ACTUAL_PID="$(pgrep -P $JOB)"
+
+while true ; do
+  if ! kill -0 "$JOB" 2>/dev/null ; then
+    echo "=> ERR $$ ssh: $JOB not running"
+    exit 1
+#  else
+#    echo "=> $$ job: $JOB running"
+  fi
+
+  if ! kill -0 "$ACTUAL_PID" 2>/dev/null ; then
+    echo "=> ERR $$ autossh: running but its child died"
+    kill $JOB
+    exit 1
+  fi
+#  echo actual pid = $ACTUAL_PID
+  sleep 1
+done
+
+exit 0
+echo "=> Exiting"
+
