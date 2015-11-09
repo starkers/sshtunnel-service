@@ -33,7 +33,22 @@ TUNNEL_PORT_REMOTE[$i]=5032
 
 # usage
 
+## Start it
+```
 supervisorctl start sshtunnel
+```
+
+## stop
+```
 supervisorctl stop  sshtunnel
+```
+
+## restart
+```
 supervisorctl restart sshtunnel
+```
+
+## view log
+```
 supervisorctl tail -f sshtunnel
+```
